@@ -1,12 +1,12 @@
 source "https://rubygems.org"
 
-ruby '4.0.1'
+ruby '3.3.7'
 
 # Bundle edge Rails instead: gem "rails", github: "rails/rails", branch: "main"
 gem 'rails', '~> 8.1.0'
 
-# Use pg as the database for Active Record
-gem "pg", "~> 1.6"
+# Use mysql2 as the database for Active Record
+gem "mysql2", "~> 0.5"
 
 # The modern asset pipeline for Rails [https://github.com/rails/propshaft]
 gem "propshaft"
@@ -94,14 +94,61 @@ gem 'sentry-rails'
 gem 'sentry-sidekiq'
 
 # Spree gems
-spree_opts = '>= 5.3.0.rc2'
+# ba_spree が 5.3.6 のソースを @gem-override でコピーしているため、上限なしの
+# '>= 5.3.0.rc2' ではなくバージョンを固定する
+spree_opts = '= 5.3.6'
 gem "spree", spree_opts
 gem "spree_emails", spree_opts
 gem "spree_sample", spree_opts
 gem "spree_admin", spree_opts
 gem "spree_storefront", spree_opts
-gem "spree_i18n"
-gem "spree_stripe"
-gem "spree_google_analytics", "~> 1.1"
-gem "spree_klaviyo", "~> 1.1"
-gem "spree_paypal_checkout", "~> 0.5"
+# spree_i18n は本体と別バージョニングで 5.3.6 が存在しないため範囲指定にする
+gem "spree_i18n", "~> 5.3"
+
+# 上流 spree-starter にあった spree_stripe / spree_klaviyo / spree_paypal_checkout は外した。
+# ba_spree が日本の決済手段 (銀行振込・代金引換・GMO PG・NP後払い) を用意しており、
+# これらはいずれも API キーが無いと使えないため、初期状態では不要。
+# 使いたい場合は Gemfile に戻して `rails g spree_stripe:install` 等を実行する。
+# @see https://github.com/be-agile/giga-repeat/issues/1317
+
+# ba_spree と、それが束ねる engine 群。
+# BA_SPREE_PATH を指定すると giga-repeat の engines/ をローカル参照し、
+# 未指定なら RubyGems から取得する (上流が SPREE_PATH でやっているのと同じ形)。
+ba_spree_path = ENV.fetch("BA_SPREE_PATH", nil)
+
+if ba_spree_path
+  # giga-repeat #1317 タスク2 でリネーム済みのため、gem 名とディレクトリ名は一致している。
+  # active_merchant_gmo_pg は spree_gmo_pg の依存だが RubyGems に未公開のため、
+  # ここで明示的に path 参照する。spree_order_total_discount も同様に未公開で、
+  # ba_spree.gemspec が依存に持つ (Spree::BaseHelper#sort_adjustments_with_flat_percent_last が
+  # Spree::Calculator::FlatPercentOrderTotal を参照する) ため、ここに列挙しないと
+  # bundle install が依存を解決できない。
+  # 一覧は ba_spree.gemspec の add_dependency と一致させること。
+  %w[
+    ba_spree
+    spree_address_format_i18n
+    spree_zip_autocomplete
+    ba_spree_bank_transfer
+    ba_spree_cash_on_delivery
+    spree_np_atobarai
+    active_merchant_gmo_pg
+    spree_gmo_pg
+    spree_direct_debit
+    spree_custom_email
+    ba_spree_loyalty_points
+    spree_materials
+    spree_order_total_discount
+    ba_spree_related_products
+    spree_products_payment_methods
+    spree_limit_order_quantity
+    spree_option_type_description
+    spree_search_with_description
+    spree_auto_capture_digital
+    spree_digital_payment_notice
+    spree_checkout_signup_promotion
+    ba_spree_google_analytics
+    spree_yahoo_ads
+  ].each { |name| gem name, path: File.join(ba_spree_path, name) }
+else
+  gem "ba_spree"
+end

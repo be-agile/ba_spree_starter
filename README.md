@@ -1,105 +1,167 @@
-# Spree Starter
+# ba_spree Starter
 
-This is a starter kit for [Spree Commerce](https://spreecommerce.org) - the [open-source eCommerce platform](https://spreecommerce.org) for [Rails](https://spreecommerce.org/category/ruby-on-rails/). 
+English | [日本語](README.ja.md)
 
-It is a great starting point for any Rails developer to quickly build an eCommerce application.
+**A ready-to-run Spree store, set up for Japan.**
 
-This starter uses:
+This is a starter kit for [ba_spree](https://github.com/be-agile/ba_spree) — a set of
+Spree Commerce extensions that make a Japanese storefront work out of the box:
+address fields in Japanese order, all 47 prefectures, tax-inclusive pricing,
+bank transfer and cash on delivery.
 
-* **[Spree Commerce 5](https://spreecommerce.org/announcing-spree-5-the-biggest-open-source-release-ever/)**, the biggest release ever, which includes Admin Dashboard, API and Storefront - everything you need to start developing your new eCommerce application/store/marketeplace
-* Stripe for payment processing, thanks to the official [Spree Stripe gem](https://github.com/spree/spree_stripe)
-* Google Analytics 4 integration, thanks to the official [Spree Google Analytics gem](https://github.com/spree/spree_google_analytics)
-* Klaviyo integration, thanks to the official [Spree Klaviyo gem](https://github.com/spree/spree_klaviyo)
-* [Devise](https://github.com/heartcombo/devise) for authentication
-* [Sidekiq](https://github.com/mperham/sidekiq) for background jobs
-* PostgreSQL as a database
-* Redis for caching
-* (Optional) [Sentry](https://sentry.io) for error/performance monitoring
-* (Optional) [SendGrid](https://sendgrid.com) for transactional email notifications
+Clone it, run a handful of commands, and you have a working Japanese shop with
+sample products to click through.
 
-You don't need to install additional tools or libraries to start developing with Spree Starter. Everything is already set up for you.
+Supported Spree version: **5.3.6** · Ruby **3.3.7** · MySQL
 
-If you like what you see, consider giving this repo a GitHub star :star:
+---
 
-Thank you for supporting Spree open-source :heart:
+## Requirements
 
-## Local Installation
+- Ruby 3.3.7
+- MySQL
+- Redis (used by Sidekiq for background jobs)
+- Node.js and Yarn (for building CSS)
+- libvips (image processing — see [Troubleshooting](#troubleshooting))
 
-Please follow [Spree Quickstart guide](https://spreecommerce.org/docs/developer/getting-started/quickstart) to setup your Spree application using the Spree starter.
+## Installation
 
-## Deployment
+```bash
+git clone https://github.com/be-agile/ba_spree_starter.git
+cd ba_spree_starter
 
-Please follow [Deployment guide](https://spreecommerce.org/docs/developer/deployment/render) to quickly deploy your production-ready Spree application.
+# BA_SPREE_PATH is required for now - see note 3 below
+BA_SPREE_PATH=/path/to/giga-repeat/engines bundle install
 
-## Customizing
+bin/rails db:create db:migrate
+bin/rails db:seed              # country, prefectures, tax, shipping, JPY, ja locale
+bin/rails spree_sample:load    # Japanese sample products and orders
 
-Please follow [Customization guide](https://spreecommerce.org/docs/developer/customization/quickstart) to learn how to customize and extend your Spree application.
+bin/dev
+```
+
+Then open http://localhost:3000.
+
+### Please read these three notes
+
+They cover the things that most often go wrong on a first run.
+
+**1. Use `bin/dev`, not `rails server`.**
+
+The compiled CSS is not checked into the repository, so a fresh clone has none.
+`bin/dev` starts the server together with the Tailwind watchers that build it.
+If you run `rails server` on its own, every page fails with:
+
+```
+Propshaft::MissingAssetError: The asset 'tailwind.css' was not found in the load path.
+```
+
+If you would rather run the server by itself, build the CSS first:
+
+```bash
+bin/rails tailwindcss:build
+bin/rails spree:admin:tailwindcss:build
+bin/rails server
+```
+
+**2. `db:seed` and `spree_sample:load` are two separate commands.**
+
+`db:seed` configures the store for Japan but adds no products. The sample
+catalogue lives in `spree_sample:load`. Skip it and you get a correctly
+configured but completely empty shop — which looks broken, but isn't.
+
+**3. `BA_SPREE_PATH` is required until the gems are published.**
+
+The ba_spree gems are not on RubyGems yet, so `bundle install` on its own fails
+with `Could not find gem 'ba_spree'`. Until they are published, point
+`BA_SPREE_PATH` at the directory holding the engines:
+
+```bash
+BA_SPREE_PATH=/path/to/giga-repeat/engines bundle install
+```
+
+Once the gems are released this becomes optional, and is only needed when you
+want to develop against your own checkout rather than the published versions.
+
+The list in the `Gemfile` must stay in sync with the `add_dependency` lines in
+`ba_spree.gemspec` — several of those engines are not published to RubyGems, so
+a missing entry makes `bundle install` fail to resolve.
+
+## What you get
+
+`db:seed` configures the store for Japan:
+
+- Country Japan, and all 47 prefectures
+- A "日本" zone
+- Consumption tax at 10% / 8% (reduced rate) / exempt
+- Flat-rate shipping
+- JPY currency and `ja` locale
+
+`spree_sample:load` then adds a Japanese demo catalogue:
+
+- 117 products with Japanese names (デニムシャツ, チェックシャツ …)
+- 1,082 variants, with Japanese colour and size options
+- 30 taxons (2026年 夏, サマーセール, ジャケット・コート …)
+- Prices in whole yen, not the upstream `.99` dollar amounts
+- Bank transfer (銀行振込) and cash on delivery (代金引換) payment methods
+- Japanese shipping methods, including 宅配便 and ネコポス
+
+The extensions themselves — Japanese address format, postal code autofill,
+loyalty points, NP deferred payment, and the rest — are documented in the
+[ba_spree README](https://github.com/be-agile/ba_spree).
+
+## How this differs from the upstream Spree starter
+
+This repository is a fork of [spree/spree_starter](https://github.com/spree/spree_starter).
+The differences are:
+
+| | Upstream | This starter |
+|---|---|---|
+| Database | PostgreSQL | MySQL |
+| Payments | Stripe, PayPal | Bank transfer, cash on delivery (Japanese methods via ba_spree) |
+| Klaviyo integration | Included | Removed |
+| Sample data | English fixtures | Japanese products, taxons and addresses |
+| Locale | English | Japanese (`ja`) |
+
+Everything else — Devise for authentication, Sidekiq for background jobs,
+Redis for caching — is inherited from upstream and unchanged.
 
 ## Running tests
-
-This repository is pre-configured for running tests of your Spree customizations. To run the full test suite, just type:
 
 ```bash
 bundle exec rspec
 ```
 
-## Spree 5 Announcement & Demo
-
-[![Spree Commerce 5 version](https://vendo-production-res.cloudinary.com/image/upload/w_2000/q_auto/v1742985405/docs/github/Spree_Commerce_open-source_eCommerce_myzurl.jpg)](https://spreecommerce.org/announcing-spree-5-the-biggest-open-source-release-ever/)
-
-[Spree 5](https://spreecommerce.org/announcing-spree-5-the-biggest-open-source-release-ever/) is the most feature-packed open-source release in Spree Commerce's history — transforming the platform into an API-first, developer-friendly, enterprise-grade eCommerce solution that still adheres to its open-source roots.
-
-[View the latest Releases](https://github.com/spree/spree/releases) ·
-[View the Roadmap](https://github.com/orgs/spree/projects) ·
-[Get Enterprise Support](https://spreecommerce.org/get-started/)
-
 ## Troubleshooting
 
-### libvips error
+### `bundle install` cannot resolve a `spree_*` gem
 
-If you encounter an error like the following:
+Some engines bundled by ba_spree are not published to RubyGems. If you are
+using `BA_SPREE_PATH`, check that the gem in the error message is listed in the
+`Gemfile`'s path list; it must match `ba_spree.gemspec` exactly.
 
-```bash
-LoadError: Could not open library 'vips.so.42'
-```
+### Every page returns 500 with `Propshaft::MissingAssetError`
 
-Please check that libvips is installed with `vips -v`, and if it is not installed, follow [installation instructions here](https://www.libvips.org/install.html).
+The CSS has not been built. Use `bin/dev`, or run the two `tailwindcss:build`
+tasks shown above before starting the server.
 
-## Join the Community 
+### `LoadError: Could not open library 'vips.so.42'`
 
-[Join our Slack](https://slack.spreecommerce.org) to meet other 6k+ community members and get some support.
+Check that libvips is installed with `vips -v`. If it is missing, follow the
+[installation instructions](https://www.libvips.org/install.html).
 
-## Need more support?
+## Credits
 
-[Contact us](https://spreecommerce.org/contact/) for enterprise support and custom development services. We offer:
-  * migrations and upgrades,
-  * delivering your Spree application,
-  * optimizing your Spree stack.
+Built on [Spree Commerce](https://spreecommerce.org), and forked from their
+[Spree Starter](https://github.com/spree/spree_starter). Spree is a genuinely
+good open-source platform, and this starter exists only because they made it
+easy to build on. If you find it useful, consider giving
+[Spree](https://github.com/spree/spree) a star and joining their
+[Slack community](https://slack.spreecommerce.org).
 
-## Enterprise Edition 
+## Licence
 
-Besides enterprise support we also offer the Spree Commerce [Enterprise Edition](https://spreecommerce.org/spree-commerce-version-comparison-community-edition-vs-enterprise-edition/) that gives you all the tools you need to launch your store or marketplace and provides you with ready-to-use integrations that will reduce your project's development time and cost.
+MIT, inherited from the upstream Spree Starter. See [LICENSE](LICENSE).
 
-With the Enterprise Edition you could build:
-
-### A [B2B eCommerce](https://spreecommerce.org/use-cases/headless-b2b-ecommerce/)
-With support for customer segmentation, per customer or segment pricing logic, organizational user roles, and gated storefronts, Spree enables you to deliver tailored experiences across many storefronts, all with a single admin panel.
-- [B2B eCommerce Capabilities](https://spreecommerce.org/docs/use-case/b2b/b2b-capabilities)
-- [B2B eCommerce Admin Capabilities](https://spreecommerce.org/docs/use-case/b2b/b2b-admin-capabilities)
-- [B2B eCommerce Buyer Experience](https://spreecommerce.org/docs/use-case/b2b/b2b-buyer-capabilities)
-<img alt="Spree Commerce - B2B eCommerce" src="https://github.com/spree/spree/assets/12614496/e0a184f6-31ad-4f7f-b30b-6f8a501b6f63">
-
-### A [white-label SaaS or multi-tenant eCommerce](https://spreecommerce.org/multi-tenant-white-label-ecommerce/) platform
-Launch a [multi-tenant eCommerce platform](https://spreecommerce.org/multi-tenant-white-label-ecommerce/) for your customers, resellers, affiliates in any configuration, eg. B2B2B, B2B2C, B2B2E
-- [Multi-Tenant Capabilities](https://spreecommerce.org/docs/use-case/multi-tenant/multi-tenant-capabilities)
-- [Multi-Tenant Super Admin Capabilities](https://spreecommerce.org/docs/use-case/multi-tenant/super-admin-capabilities)
-- [Tenant Capabilities](https://spreecommerce.org/docs/use-case/multi-tenant/tenant-capabilities)
-<img alt="Spree Commerce - Multi-store" src="https://github.com/spree/spree/assets/12614496/cf651354-6180-4927-973f-c650b80ccdb0">
-
-### A [Multi-vendor marketplace](https://spreecommerce.org/marketplace-ecommerce/)
-Run your own marketplace with multiple suppliers, each with a dedicated supplier dashboard
-- [Marketplace eCommerce Capabilities](https://spreecommerce.org/docs/use-case/marketplace/capabilities)
-- [Marketplace eCommerce Admin Panel](https://spreecommerce.org/docs/use-case/marketplace/admin-dashboard)
-- [Marketplace eCommerce Vendor Panel](https://spreecommerce.org/docs/use-case/marketplace/vendor-dashboard)
-- [Marketplace eCommerce Customer Experience](https://spreecommerce.org/docs/use-case/marketplace/customer-ux)
-<img alt="Spree Commerce - Marketplace" src="https://github.com/spree/spree/assets/12614496/c4ddd118-df4c-464e-b1fe-d43862e5cf25">
+Note that the `ba_spree` gems this starter depends on are AGPL-3.0-or-later,
+because they copy and modify parts of the Spree 5.3.6 storefront and admin.
