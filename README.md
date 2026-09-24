@@ -30,8 +30,7 @@ Supported Spree version: **5.3.6** · Ruby **3.3.7** · MySQL
 git clone https://github.com/be-agile/ba_spree_starter.git
 cd ba_spree_starter
 
-# BA_SPREE_PATH is required for now - see note 3 below
-BA_SPREE_PATH=/path/to/giga-repeat/engines bundle install
+bundle install
 
 bin/rails db:create db:migrate
 bin/rails db:seed              # country, prefectures, tax, shipping, JPY, ja locale
@@ -70,22 +69,19 @@ bin/rails server
 catalogue lives in `spree_sample:load`. Skip it and you get a correctly
 configured but completely empty shop — which looks broken, but isn't.
 
-**3. `BA_SPREE_PATH` is required until the gems are published.**
+**3. `BA_SPREE_PATH` is optional.**
 
-The ba_spree gems are not on RubyGems yet, so `bundle install` on its own fails
-with `Could not find gem 'ba_spree'`. Until they are published, point
-`BA_SPREE_PATH` at the directory holding the engines:
+The ba_spree gems are published on RubyGems, so a plain `bundle install` is all
+you need. Set `BA_SPREE_PATH` only when you want to develop the engines against
+your own checkout rather than the published versions:
 
 ```bash
 BA_SPREE_PATH=/path/to/giga-repeat/engines bundle install
 ```
 
-Once the gems are released this becomes optional, and is only needed when you
-want to develop against your own checkout rather than the published versions.
-
-The list in the `Gemfile` must stay in sync with the `add_dependency` lines in
-`ba_spree.gemspec` — several of those engines are not published to RubyGems, so
-a missing entry makes `bundle install` fail to resolve.
+With it set, the `Gemfile` follows the dependencies of `ba_spree.gemspec`
+through the gemspecs in that directory, and loads every engine it finds from
+there instead of RubyGems. There is no engine list to maintain in the `Gemfile`.
 
 ## What you get
 
@@ -134,11 +130,11 @@ bundle exec rspec
 
 ## Troubleshooting
 
-### `bundle install` cannot resolve a `spree_*` gem
+### `bundle install` cannot resolve a `spree_*` gem with `BA_SPREE_PATH` set
 
-Some engines bundled by ba_spree are not published to RubyGems. If you are
-using `BA_SPREE_PATH`, check that the gem in the error message is listed in the
-`Gemfile`'s path list; it must match `ba_spree.gemspec` exactly.
+Check that the gem in the error message exists directly under `BA_SPREE_PATH`
+as `<gem name>/<gem name>.gemspec`. An engine that is not found there is fetched
+from RubyGems instead, which fails if it has not been published yet.
 
 ### Every page returns 500 with `Propshaft::MissingAssetError`
 

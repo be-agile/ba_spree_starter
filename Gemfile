@@ -117,38 +117,23 @@ gem "spree_i18n", "~> 5.3"
 ba_spree_path = ENV.fetch("BA_SPREE_PATH", nil)
 
 if ba_spree_path
-  # giga-repeat #1317 タスク2 でリネーム済みのため、gem 名とディレクトリ名は一致している。
-  # active_merchant_gmo_pg は spree_gmo_pg の依存だが RubyGems に未公開のため、
-  # ここで明示的に path 参照する。spree_order_total_discount も同様に未公開で、
-  # ba_spree.gemspec が依存に持つ (Spree::BaseHelper#sort_adjustments_with_flat_percent_last が
-  # Spree::Calculator::FlatPercentOrderTotal を参照する) ため、ここに列挙しないと
-  # bundle install が依存を解決できない。
-  # 一覧は ba_spree.gemspec の add_dependency と一致させること。
-  %w[
-    ba_spree
-    spree_address_format_i18n
-    spree_zip_autocomplete
-    ba_spree_bank_transfer
-    ba_spree_cash_on_delivery
-    spree_np_atobarai
-    active_merchant_gmo_pg
-    spree_gmo_pg
-    spree_direct_debit
-    spree_custom_email
-    ba_spree_loyalty_points
-    spree_materials
-    spree_order_total_discount
-    ba_spree_related_products
-    spree_products_payment_methods
-    spree_limit_order_quantity
-    spree_option_type_description
-    spree_search_with_description
-    spree_auto_capture_digital
-    spree_digital_payment_notice
-    spree_checkout_signup_promotion
-    ba_spree_google_analytics
-    spree_yahoo_ads
-  ].each { |name| gem name, path: File.join(ba_spree_path, name) }
+  # ba_spree.gemspec の実行時依存を BA_SPREE_PATH 内の gemspec で再帰的に辿り、見つかった engine を全て path 参照する
+  # (spree_gmo_pg 経由の active_merchant_gmo_pg も含む)。一覧を gemspec だけに持ち、ここでは二重管理しない。
+  # ここで path 参照しなかった engine は RubyGems の公開版が使われ、手元の変更が反映されない。
+  # @see https://github.com/be-agile/giga-repeat/issues/1403
+  engine_names = []
+  queue = ["ba_spree"]
+  until queue.empty?
+    name = queue.shift
+    gemspec = File.join(ba_spree_path, name, "#{name}.gemspec")
+    next if engine_names.include?(name) || !File.exist?(gemspec)
+
+    engine_names << name
+    # gemspec 内の Dir[] はカレントディレクトリを見るため、engine ディレクトリで読む
+    spec = Dir.chdir(File.dirname(gemspec)) { Gem::Specification.load(gemspec) }
+    queue.concat(spec.runtime_dependencies.map(&:name))
+  end
+  engine_names.each { |name| gem name, path: File.join(ba_spree_path, name) }
 else
   gem "ba_spree"
 end

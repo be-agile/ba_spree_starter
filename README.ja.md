@@ -28,8 +28,7 @@ clone してコマンドをいくつか実行すれば、サンプル商品の�
 git clone https://github.com/be-agile/ba_spree_starter.git
 cd ba_spree_starter
 
-# 現時点では BA_SPREE_PATH が必須です (下記の注意3を参照)
-BA_SPREE_PATH=/path/to/giga-repeat/engines bundle install
+bundle install
 
 bin/rails db:create db:migrate
 bin/rails db:seed              # 国・都道府県・消費税・配送料・通貨(JPY)・ロケール(ja)
@@ -67,20 +66,17 @@ bin/rails server
 実行し忘れると、設定は正しいのに商品が1件もないショップになります
 (壊れているように見えますが、正常です)。
 
-**3. gem 公開までは `BA_SPREE_PATH` が必須です。**
+**3. `BA_SPREE_PATH` は任意です。**
 
-ba_spree の gem 群はまだ RubyGems に公開していないため、`bundle install` を
-そのまま実行すると `Could not find gem 'ba_spree'` で失敗します。
-公開されるまでは、engine 群のあるディレクトリを `BA_SPREE_PATH` に指定してください。
+ba_spree の gem 群は RubyGems に公開済みなので、`bundle install` だけで入ります。
+`BA_SPREE_PATH` は、公開版ではなく手元の checkout で engine を開発したい場合にだけ指定します。
 
 ```bash
 BA_SPREE_PATH=/path/to/giga-repeat/engines bundle install
 ```
 
-gem 公開後は任意指定になり、公開版ではなく手元の checkout で開発したい場合にのみ使います。
-
-`Gemfile` の一覧は `ba_spree.gemspec` の `add_dependency` と一致させる必要があります。
-一部の engine は RubyGems に未公開のため、書き漏らすと `bundle install` が依存を解決できません。
+指定すると、`ba_spree.gemspec` の依存をそのディレクトリ内の gemspec で辿り、見つかった engine を
+RubyGems ではなくそのディレクトリから読み込みます。engine の一覧を `Gemfile` に書き足す必要はありません。
 
 ## 何が入るか
 
@@ -129,11 +125,10 @@ bundle exec rspec
 
 ## トラブルシューティング
 
-### `bundle install` が `spree_*` gem を解決できない
+### `BA_SPREE_PATH` を指定すると `bundle install` が `spree_*` gem を解決できない
 
-ba_spree が束ねる engine の一部は RubyGems に未公開です。
-`BA_SPREE_PATH` を使っている場合は、エラーに出ている gem が `Gemfile` の
-path 一覧に含まれているか確認してください。`ba_spree.gemspec` と一致している必要があります。
+エラーに出ている gem が、`BA_SPREE_PATH` の直下に `<gem名>/<gem名>.gemspec` として存在するか確認してください。
+見つからない engine は RubyGems から取得しようとするため、まだ公開されていない engine だと解決できません。
 
 ### 全ページが `Propshaft::MissingAssetError` で 500 になる
 
